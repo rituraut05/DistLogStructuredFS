@@ -6,6 +6,8 @@
 
 enum TYPE {regular,dir};
 
+int disk;
+
 typedef struct CR_t
 {
     int endofLog;
