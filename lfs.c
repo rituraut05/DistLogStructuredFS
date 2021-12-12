@@ -47,14 +47,8 @@ void printError(int line)
 {
     printf("Error at line %d \n",((line)));
 }
-int fslookup(int iParent, char *name)
+int fsFindInodeAddr(int iParent)
 {
-    //Sanitycheck for iParent
-    if(iParent<0 || iParent>MAXINODE)
-    {
-        printError(__LINE__);
-        return -1;
-    }
     int imapAddr = cr->iMap[iParent/MAXIMAPSIZE];
     if(imapAddr==-1)
     {
@@ -67,6 +61,17 @@ int fslookup(int iParent, char *name)
     read(disk,&imap,sizeof(Imap_t));
 
     int inodeAddr = imap.iLoc[imapIndex];
+    return inodeAddr;
+}
+int fslookup(int iParent, char *name)
+{
+    //Sanitycheck for iParent
+    if(iParent<0 || iParent>MAXINODE)
+    {
+        printError(__LINE__);
+        return -1;
+    }
+    int inodeAddr = fsFindInodeAddr(iParent);
     if(inodeAddr==-1)
     {
         printError(__LINE__);
@@ -74,7 +79,7 @@ int fslookup(int iParent, char *name)
     }
     Inode_t inode;
     lseek(disk,inodeAddr,SEEK_SET);
-    read(disk,inode,sizeof(Inode_t));
+    read(disk,&inode,sizeof(Inode_t));
     if(inode.type!=dir)
     {
         printError(__LINE__);
@@ -103,17 +108,81 @@ int fslookup(int iParent, char *name)
 
 }
 
+int updateDir(Inode_t* inode,int newiNum,char* name)
+{
+    int isFound = 0;
+    int dataBlockAddr = -1;
+    for(int i=0;i<MAXDP;i++)
+    {
+        if(isFound==1)
+            break;
+        int dataBlockAddr = inode->dp[i];
+        if(dataBlockAddr==-1)
+            continue;
+        Dir_t block;
+        lseek(disk,dataBlockAddr,SEEK_SET);
+        read(disk, &block,sizeof(Dir_t));
+        for(int j=0;j<MAXDIRSIZE;j++)
+        {
+            if(block.dTable[j].iNum==-1)
+            {
+                block.dTable[j].iNum=newiNum;
+                int len = strlen(name);
+                memcpy(block.dTable[j].name,name,len);
+                isFound=1;
+                dataBlockAddr = cr->endofLog;
+                lseek(disk,dataBlockAddr,SEEK_SET);
+                write(disk,&block,sizeof(Dir_t));
+                return dataBlockAddr;
+            }
+        }
+
+    }
+    return  dataBlockAddr;
+}
 int fsCreate(int iParent, enum TYPE type, char *name)
 {
     //Check if name is already in use?
     int isValid = fsLookup(iParent,name);
-    if(isValid==-1)
+    if(isValid!=-1)
     {
         printError(__LINE__);
         return -1;        
     }
 
     //We will check for next available inode Value: Todo
+    int inodeAddr = fsFindInodeAddr(iParent);
+
+    if(inodeAddr==-1)
+    {
+        printError(__LINE__);
+        return -1;       
+    }
+    Inode_t inode;
+    lseek(disk,inodeAddr,SEEK_SET);
+    read(disk,&inode,sizeof(Inode_t));
+    if(inode.type!=dir)
+    {
+        printError(__LINE__);
+        return -1;
+    }    
+    //Finding next
+    int newiNum = cr->iCount;
+    cr->iCount++;
+    int newParentBlockAddr = UpdateDir(&inode,newiNum,name);
+    int dataBlockAddr;
+    void* dataBlock;
+    if(type==dir)
+    {
+        Dir_t* temp = getDir();
+        temp->dTable[1].iNum=iParent;
+        dataBlock = temp;
+    }
+    else
+    {
+
+    }
+
     return 0;
 
 
@@ -162,7 +231,7 @@ int fsInit(int portNum, char* fsImage)
     int rootAddr = cr->endofLog;
     lseek(disk,cr->endofLog,SEEK_SET);
     write(disk,root, sizeof(Dir_t));
-    cr->endofLog+=BLOCK_SIZE;
+    cr->endofLog+=sizeof(Dir_t);
 
     //inode for rootDir
 
