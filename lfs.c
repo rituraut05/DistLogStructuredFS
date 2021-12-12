@@ -111,11 +111,10 @@ int fslookup(int iParent, char *name)
 int updateDir(Inode_t* inode,int newiNum,char* name)
 {
     int isFound = 0;
-    int dataBlockAddr = -1;
+    int newBlockAddr = -1;
+    int newInodeAddr=-1;
     for(int i=0;i<MAXDP;i++)
     {
-        if(isFound==1)
-            break;
         int dataBlockAddr = inode->dp[i];
         if(dataBlockAddr==-1)
             continue;
@@ -130,16 +129,49 @@ int updateDir(Inode_t* inode,int newiNum,char* name)
                 int len = strlen(name);
                 memcpy(block.dTable[j].name,name,len);
                 isFound=1;
-                dataBlockAddr = cr->endofLog;
-                lseek(disk,dataBlockAddr,SEEK_SET);
+                newBlockAddr = cr->endofLog;
+                lseek(disk,newBlockAddr,SEEK_SET);
                 write(disk,&block,sizeof(Dir_t));
-                return dataBlockAddr;
+                cr->endofLog+=sizeof(Dir_t);
+                break;
             }
+        }
+        if(isFound==1)
+        {
+            inode->dp[i]=newBlockAddr;
+            newInodeAddr = cr->endofLog;
+            lseek(disk,newInodeAddr,SEEK_SET);
+            write(disk,inode,sizeof(Inode_t)); 
+            cr->endofLog+=sizeof(Inode_t); 
+            break;      
         }
 
     }
-    return  dataBlockAddr;
+    return  newInodeAddr;
 }
+void updateCRMap(int iParent, int iParentAddr)
+{
+    int imapAddr = cr->iMap[iParent/MAXIMAPSIZE];
+    if(imapAddr==-1)
+    {
+        printError(__LINE__);
+        return -1;        
+    }
+    int imapIndex = iParent % MAXIMAPSIZE;
+    Imap_t imap;
+    lseek(disk,imapAddr,SEEK_SET);
+    read(disk,&imap,sizeof(Imap_t));
+
+    //writing new Imap
+    imap.iLoc[imapIndex] = iParentAddr;
+    int newimapAddr = cr->endofLog;
+    lseek(disk,newimapAddr,SEEK_SET);
+    write(disk,&imap,sizeof(Imap_t));
+    cr->endofLog+=sizeof(Imap_t);
+    cr->iMap[iParent/MAXIMAPSIZE] = newimapAddr;
+
+}
+
 int fsCreate(int iParent, enum TYPE type, char *name)
 {
     //Check if name is already in use?
@@ -169,7 +201,8 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     //Finding next
     int newiNum = cr->iCount;
     cr->iCount++;
-    int newParentBlockAddr = UpdateDir(&inode,newiNum,name);
+    int newiParentAddr = UpdateDir(&inode,newiNum,name);
+
     int dataBlockAddr;
     void* dataBlock;
     if(type==dir)
