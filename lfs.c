@@ -63,7 +63,7 @@ int fsFindInodeAddr(int iParent)
     int inodeAddr = imap.iLoc[imapIndex];
     return inodeAddr;
 }
-int fslookup(int iParent, char *name)
+int fsLookup(int iParent, char *name)
 {
     //Sanitycheck for iParent
     if(iParent<0 || iParent>MAXINODE)
@@ -207,7 +207,7 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     //Updating Parent Indo
     int newiNum = cr->iCount;
     cr->iCount++;
-    int newiParentAddr = UpdateDir(&inode,newiNum,name);
+    int newiParentAddr = updateDir(&inode,newiNum,name);
     updateCRMap(iParent,newiParentAddr);
 
     //For new File
@@ -259,7 +259,7 @@ int fsInit(int portNum, char* fsImage)
     if(diskStat.st_size > sizeof(CR_t))
     {
         printf("Disk Already Initilised\n");
-        printf("%d\n",diskStat.st_size);
+        printf("%lld\n",diskStat.st_size);
 
         lseek(disk,0,SEEK_SET);
         read(disk,cr,sizeof(CR_t));
