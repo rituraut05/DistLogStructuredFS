@@ -149,26 +149,32 @@ int updateDir(Inode_t* inode,int newiNum,char* name)
     }
     return  newInodeAddr;
 }
-void updateCRMap(int iParent, int iParentAddr)
+int updateCRMap(int iNum, int iAddr)
 {
-    int imapAddr = cr->iMap[iParent/MAXIMAPSIZE];
+    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
     if(imapAddr==-1)
     {
-        printError(__LINE__);
-        return -1;        
+        Imap_t* temp = getImap();
+        int newimapAddr = cr->endofLog;
+        lseek(disk,newimapAddr,SEEK_SET);
+        write(disk,temp,sizeof(Imap_t));  
+        cr->endofLog+=sizeof(Imap_t);
+        cr->iMap[iNum/MAXIMAPSIZE] = newimapAddr;
+        return newimapAddr;           
     }
-    int imapIndex = iParent % MAXIMAPSIZE;
+    int imapIndex = iNum % MAXIMAPSIZE;
     Imap_t imap;
     lseek(disk,imapAddr,SEEK_SET);
     read(disk,&imap,sizeof(Imap_t));
 
     //writing new Imap
-    imap.iLoc[imapIndex] = iParentAddr;
+    imap.iLoc[imapIndex] = iAddr;
     int newimapAddr = cr->endofLog;
     lseek(disk,newimapAddr,SEEK_SET);
     write(disk,&imap,sizeof(Imap_t));
     cr->endofLog+=sizeof(Imap_t);
-    cr->iMap[iParent/MAXIMAPSIZE] = newimapAddr;
+    cr->iMap[iNum/MAXIMAPSIZE] = newimapAddr;
+    return newimapAddr;
 
 }
 
@@ -198,23 +204,41 @@ int fsCreate(int iParent, enum TYPE type, char *name)
         printError(__LINE__);
         return -1;
     }    
-    //Finding next
+    //Updating Parent Indo
     int newiNum = cr->iCount;
     cr->iCount++;
     int newiParentAddr = UpdateDir(&inode,newiNum,name);
+    updateCRMap(iParent,newiParentAddr);
 
-    int dataBlockAddr;
-    void* dataBlock;
+    //For new File
+    int dataBlockAddr=cr->endofLog;
+    Inode_t* newInode = getInode();
+    lseek(disk,dataBlockAddr,SEEK_SET);
     if(type==dir)
     {
         Dir_t* temp = getDir();
         temp->dTable[1].iNum=iParent;
-        dataBlock = temp;
+        write(disk,temp,sizeof(Dir_t));
+        newInode->type=dir;      
     }
     else
     {
-
+        char* temp = (char*)malloc(sizeof(BLOCKSIZE));
+        write(disk,temp,sizeof(BLOCKSIZE));
+        newInode->type=regular;       
     }
+    cr->endofLog+=dataBlockAddr;
+    newInode->dp[0]=dataBlockAddr;
+    int newInodeAddr = cr->endofLog;
+    lseek(disk,newInodeAddr,SEEK_SET);
+    write(disk,newInode,sizeof(Inode_t));
+    cr->endofLog+=sizeof(Inode_t);
+    updateCRMap(newiNum,newInodeAddr);
+    
+    lseek(disk,0,SEEK_SET);
+    write(disk,cr,sizeof(CR_t));
+
+    fsync(disk);
 
     return 0;
 
