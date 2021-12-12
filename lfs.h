@@ -3,40 +3,41 @@
 #define MAXIMAPS 256
 #define MAXDIRSIZE 128
 #define MAXDP 14
+#define BLOCKSIZE 4096
 
 enum TYPE {regular,dir};
 
-int disk;
+
 
 typedef struct CR_t
 {
     int endofLog;
     int iMap[MAXIMAPS];
     int iCount;
-};
+}CR_t;
 
 typedef struct Inode_t {
     int size;
     enum TYPE type;
     int dp[MAXDP];
-};
+}Inode_t;
 
 typedef struct DirEntry_t {
     char name[28];
     int iNum;
-};
+}DirEntry_t;
 
 typedef struct Dir_t {
-    DirEntry_t dTable[128];
-};
+    struct DirEntry_t dTable[MAXDIRSIZE];
+}Dir_t;
 
 typedef struct Imap_t
 {
     int iLoc[MAXIMAPSIZE];
-};
+}Imap_t;
 
-Inode_t* getInode();
-Imap_t* getImap();
-Dir_t* getDir();
+struct Inode_t* getInode();
+struct Imap_t* getImap();
+struct Dir_t* getDir();
 
 
