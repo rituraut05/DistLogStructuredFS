@@ -63,6 +63,7 @@ int fsFindInodeAddr(int iParent)
     int inodeAddr = imap.iLoc[imapIndex];
     return inodeAddr;
 }
+
 int fsLookup(int iParent, char *name)
 {
     //Sanitycheck for iParent
@@ -107,6 +108,130 @@ int fsLookup(int iParent, char *name)
 
 
 }
+
+Inode_t* fetchInode(int iNum){
+    if(iNum<0 || iNum>MAXINODE)
+    {
+        printError(__LINE__);
+        return NULL;
+    }
+    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
+    if(imapAddr==-1) {
+        printError(__LINE__);
+        return NULL;        
+    }
+    int imapIndex = iNum % MAXIMAPSIZE;
+    Imap_t imap;
+    lseek(disk,imapAddr,SEEK_SET);
+    read(disk,&imap,sizeof(Imap_t));
+
+    int inodeAddr = imap.iLoc[imapIndex];
+    if(inodeAddr==-1) {
+        printError(__LINE__);
+        return NULL;       
+    }
+    Inode_t* inode;
+    lseek(disk,inodeAddr,SEEK_SET);
+    read(disk,inode,sizeof(Inode_t));
+    return inode;
+
+}
+
+void* fsRead(int inum, char *buffer, int block) {
+    // get the inode
+    Inode_t* inode = fetchInode(inum);
+    if(inode == NULL)
+        return -1;
+
+    lseek(disk, inode->dp[block], SEEK_SET);
+
+    if(inode->type == regular) {
+        read(disk, buffer, MFS_BLOCK_SIZE);
+        return 0;
+    }
+    Dir_t* dir;
+    read(disk, dir, MFS_BLOCK_SIZE);
+    return dir;
+}
+
+int fsWrite(int inum, char *buffer, int block) {
+    // get the inode
+    Inode_t* inode = fetchInode(inum);
+    if(inode == NULL)
+        return -1;
+
+    lseek(disk, inode->dp[block], SEEK_SET);
+
+    if(inode->type == regular) {
+        write(disk, buffer, MFS_BLOCK_SIZE);
+        return 0;
+    }
+    return -1;
+}
+
+int fsUnlink(int iParent, char *name) {
+
+    //get inode of the directory by iParent
+    Inode_t* inode = fetchInode(iParent);
+    if(inode == NULL) // failure. Failure modes: pinum does not exist, directory is NOT empty. Note that the name not existing is NOT a failure by our definition
+        return -1;
+
+    if(inode->type != dir)
+        return -1;
+
+    //go through all the datablocks given by dp
+    // find for given name in them. If found, set iNum to -1
+    // dump these blocks on disc
+    int delInodeAddr = -1;
+    int newiParentAddr = updateDirUnlink(&inode, name, &delInodeAddr);
+
+    // update imap for this inode
+    updateCRMap(iParent,newiParentAddr);
+
+    // update the unlinked file's inode, datablock and imap[delInodeAddr] = -1?
+
+    return 0;
+}
+
+int updateDirUnlink(Inode_t* inode, char* name, int* delInodeAddr) {
+    int isFound = 0;
+    int newBlockAddr = -1;
+    int newInodeAddr = -1;
+    for(int i=0;i<MAXDP;i++)
+    {
+        int dataBlockAddr = inode->dp[i];
+        if(dataBlockAddr==-1)
+            continue;
+        Dir_t block;
+        lseek(disk,dataBlockAddr,SEEK_SET);
+        read(disk, &block,sizeof(Dir_t));
+        for(int j=0;j<MAXDIRSIZE;j++)
+        {
+            if(strcmp(block.dTable[j].name,name)==0) {
+                *delInodeAddr = block.dTable[j].iNum;
+                block.dTable[j].iNum = -1;
+                isFound=1;
+                newBlockAddr = cr->endofLog;
+                lseek(disk,newBlockAddr,SEEK_SET);
+                write(disk,&block,sizeof(Dir_t));
+                cr->endofLog+=sizeof(Dir_t);
+                break;
+            }
+        }
+        if(isFound==1)
+        {
+            inode->dp[i]=newBlockAddr;
+            newInodeAddr = cr->endofLog;
+            lseek(disk, newInodeAddr, SEEK_SET);
+            write(disk, inode, sizeof(Inode_t)); 
+            cr->endofLog+=sizeof(Inode_t); 
+            break;      
+        }
+
+    }
+    return  newInodeAddr;
+}
+
 
 int updateDir(Inode_t* inode,int newiNum,char* name)
 {
@@ -156,6 +281,7 @@ int updateCRMap(int iNum, int iAddr)
     {
         Imap_t* temp = getImap();
         int newimapAddr = cr->endofLog;
+        // why aren't we updating the temp.iLoc[iNum % MAXIMAPSIZE] = iAddr;
         lseek(disk,newimapAddr,SEEK_SET);
         write(disk,temp,sizeof(Imap_t));  
         cr->endofLog+=sizeof(Imap_t);
