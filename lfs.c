@@ -47,6 +47,78 @@ void printError(int line)
 {
     printf("Error at line %d \n",((line)));
 }
+int fslookup(int iParent, char *name)
+{
+    //Sanitycheck for iParent
+    if(iParent<0 || iParent>MAXINODE)
+    {
+        printError(__LINE__);
+        return -1;
+    }
+    int imapAddr = cr->iMap[iParent/MAXIMAPSIZE];
+    if(imapAddr==-1)
+    {
+        printError(__LINE__);
+        return -1;        
+    }
+    int imapIndex = iParent % MAXIMAPSIZE;
+    Imap_t imap;
+    lseek(disk,imapAddr,SEEK_SET);
+    read(disk,&imap,sizeof(Imap_t));
+
+    int inodeAddr = imap.iLoc[imapIndex];
+    if(inodeAddr==-1)
+    {
+        printError(__LINE__);
+        return -1;       
+    }
+    Inode_t inode;
+    lseek(disk,inodeAddr,SEEK_SET);
+    read(disk,inode,sizeof(Inode_t));
+    if(inode.type!=dir)
+    {
+        printError(__LINE__);
+        return -1;
+    }
+    //Search Through every Direct pointer
+    for(int i=0;i<MAXDP;i++)
+    {
+        int dataBlockAddr = inode.dp[i];
+        if(dataBlockAddr==-1)
+            continue;
+        Dir_t block;
+        lseek(disk,dataBlockAddr,SEEK_SET);
+        read(disk, &block,sizeof(Dir_t));
+        for(int j=0;j<MAXDIRSIZE;j++)
+        {
+            if(strcmp(block.dTable[j].name,name)==0)
+                return block.dTable[j].iNum;
+        }
+
+    }
+    printError(__LINE__);
+    return -1;
+
+
+
+}
+
+int fsCreate(int iParent, enum TYPE type, char *name)
+{
+    //Check if name is already in use?
+    int isValid = fsLookup(iParent,name);
+    if(isValid==-1)
+    {
+        printError(__LINE__);
+        return -1;        
+    }
+
+    //We will check for next available inode Value: Todo
+    return 0;
+
+
+}
+
 int fsInit(int portNum, char* fsImage)
 {
     disk  = open(fsImage, O_RDWR|O_CREAT, S_IRWXU);
@@ -64,15 +136,10 @@ int fsInit(int portNum, char* fsImage)
         printf("%d\n",diskStat.st_size);
 
         lseek(disk,0,SEEK_SET);
-        //read(disk,cr,sizeof(CR_t));
+        read(disk,cr,sizeof(CR_t));
         return 1;
 
     }
-    
-    Dir_t* root = getDir();
-    printf("%s\n",root->dTable[0].name);
-    printf("%s\n",root->dTable[1].name);
-
     cr = (CR_t*)malloc(sizeof(CR_t));
 
     cr->iCount=0;
