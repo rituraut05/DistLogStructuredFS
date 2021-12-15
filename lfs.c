@@ -148,21 +148,18 @@ int fsLookup(int iParent, char *name)
 
 }
 
-void* fsRead(int inum, char *buffer, int block) {
+int fsRead(int inum, char *buffer, int block) {
     // get the inode
     Inode_t* inode = fetchInode(inum);
     if(inode == NULL)
-        return NULL;
+        return -1;
 
+   if(block<0 || block >= MAXDP)
+        return -1;    
+    
     lseek(disk, inode->dp[block], SEEK_SET);
-
-    if(inode->type == regular) {
-        read(disk, buffer, MFS_BLOCK_SIZE);
-        return 0;
-    }
-    Dir_t* dir;
-    read(disk, dir, MFS_BLOCK_SIZE);
-    return dir;
+    read(disk, buffer, MFS_BLOCK_SIZE);
+    return 0;
 }
 
 int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){

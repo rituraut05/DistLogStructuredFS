@@ -49,7 +49,7 @@ Inode_t* fetchInode(int iNum);
 Imap_t* fetchImap(int iNum);
 int fsFindInodeAddr(int iParent);
 int fsLookup(int iParent, char *name);
-void* fsRead(int inum, char *buffer, int block);
+int fsRead(int inum, char *buffer, int block);
 int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block);
 int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block);
 int fsWrite(int inum, char *buffer, int block) ;

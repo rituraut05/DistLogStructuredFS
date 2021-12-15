@@ -39,6 +39,7 @@ int init(int port, char* image_path)
   UDP_Packet buf_pk,  rx_pk;
 
   while (1) {
+    printf("Server Started \n");
     if( UDP_Read(sd, &s, (char *)&buf_pk, sizeof(UDP_Packet)) < 1)
       continue;
 
