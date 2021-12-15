@@ -11,9 +11,6 @@
 #include "mfs.h"
 
 
-int disk;
-CR_t* cr;
-
 Inode_t* getInode()
 {
     Inode_t* temp = (Inode_t*)malloc(sizeof(Inode_t));
@@ -472,7 +469,27 @@ int fsCreate(int iParent, enum TYPE type, char *name)
 
 }
 
-int fsInit(int portNum, char* fsImage)
+int fsShutDown()
+{
+    fsync(disk);
+    exit(0);
+}
+
+int fsStat(int iNum, MFS_Stat_t* stat)
+{
+    Inode_t* inode = fetchInode(iNum);
+
+    if(inode==NULL)
+    {
+        printError(__LINE__);
+        return -1;
+    }
+    stat->size=inode->size;
+    stat->type=inode->type;
+    return 0;
+}
+
+int fsInit(char* fsImage)
 {
     disk  = open(fsImage, O_RDWR|O_CREAT, S_IRWXU);
     struct stat diskStat;
@@ -542,11 +559,11 @@ int fsInit(int portNum, char* fsImage)
 
     
 
-    return 2;
+    return 0;
 }
 int main()
 {
-    fsInit(0,"hello");
+    fsInit("hello");
     fsCreate(0, regular, "writeTest");
 
     printf("lookup inum = %d", fsLookup(0, "writeTest"));
