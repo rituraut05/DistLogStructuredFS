@@ -8,11 +8,6 @@
 #include <assert.h>
 
 #include "lfs.h"
-#include "mfs.h"
-
-
-int disk;
-CR_t* cr;
 
 Inode_t* getInode()
 {
@@ -152,23 +147,20 @@ int fsLookup(int iParent, char *name)
 
 }
 
-void* fsRead(int inum, char *buffer, int block) {
+int fsRead(int inum, char *buffer, int block) {
     // get the inode
+    if(block<0 || block >= MAXDP)
+        return -1;    
     Inode_t* inode = fetchInode(inum);
+
     if(inode == NULL || inode->dp[block] == -1){
         printError(__LINE__);
         return NULL;
     }
         
     lseek(disk, inode->dp[block], SEEK_SET);
-
-    if(inode->type == regular) {
-        read(disk, buffer, MFS_BLOCK_SIZE);
-        return 0;
-    }
-    Dir_t* dir;
-    read(disk, dir, MFS_BLOCK_SIZE);
-    return dir;
+    read(disk, buffer, MFS_BLOCK_SIZE);
+    return 0;
 }
 
 int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){
@@ -476,7 +468,27 @@ int fsCreate(int iParent, enum TYPE type, char *name)
 
 }
 
-int fsInit(int portNum, char* fsImage)
+int fsShutDown()
+{
+    fsync(disk);
+    exit(0);
+}
+
+int fsStat(int iNum, MFS_Stat_t* stat)
+{
+    Inode_t* inode = fetchInode(iNum);
+
+    if(inode==NULL)
+    {
+        printError(__LINE__);
+        return -1;
+    }
+    stat->size=inode->size;
+    stat->type=inode->type;
+    return 0;
+}
+
+int fsInit(char* fsImage)
 {
     disk  = open(fsImage, O_RDWR|O_CREAT, S_IRWXU);
     struct stat diskStat;
@@ -543,32 +555,8 @@ int fsInit(int portNum, char* fsImage)
     write(disk,cr,sizeof(CR_t));
 
     fsync(disk);
-
-    
-
-    return 2;
-}
-
-int main()
-{
-    fsInit(0,"hello");
-    fsCreate(0, regular, "writeTest");
-
-    printf("lookup inum = %d\n", fsLookup(0, "writeTest"));
-    int inum = fsLookup(0, "writeTest");
-    char block[BLOCKSIZE] = "Hello\0";
-    // memset(block, 0, sizeof(block));
-    fsWrite(inum, block, 0);
-
-    char readBlock[BLOCKSIZE];
-    fsRead(inum, readBlock, 0);
-    printf("read value = %s\n", readBlock);
-    
-    fsUnlink(0, "writeTest");
-    fsRead(inum, readBlock, 0);
-    printf("read value = %s\n", readBlock);
-    
     return 0;
 }
+
 
 
