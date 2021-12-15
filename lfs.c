@@ -47,6 +47,55 @@ void printError(int line)
 {
     printf("Error at line %d \n",((line)));
 }
+Inode_t* fetchInode(int iNum){
+    if(iNum<0 || iNum>MAXINODE)
+    {
+        printError(__LINE__);
+        return NULL;
+    }
+    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
+    if(imapAddr==-1) {
+        printError(__LINE__);
+        return NULL;        
+    }
+    int imapIndex = iNum % MAXIMAPSIZE;
+    Imap_t imap;
+    lseek(disk,imapAddr,SEEK_SET);
+    read(disk,&imap,sizeof(Imap_t));
+
+    int inodeAddr = imap.iLoc[imapIndex];
+    if(inodeAddr==-1) {
+        printError(__LINE__);
+        return NULL;       
+    }
+    Inode_t* inode = (Inode_t*)malloc(sizeof(Inode_t));
+    lseek(disk,inodeAddr,SEEK_SET);
+    read(disk, inode,sizeof(Inode_t));
+    return inode;
+
+}
+
+Imap_t* fetchImap(int iNum){
+    if(iNum<0 || iNum>MAXINODE)
+    {
+        printError(__LINE__);
+        return NULL;
+    }
+    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
+
+    if(imapAddr==-1) {
+        printError(__LINE__);
+        return NULL;        
+    }
+
+    Imap_t *imap = (Imap_t*)malloc(sizeof(Imap_t));
+    lseek(disk, imapAddr,SEEK_SET);
+    read(disk, imap,sizeof(Imap_t));
+
+    return imap;
+}
+
+
 int fsFindInodeAddr(int iParent)
 {
     int imapAddr = cr->iMap[iParent/MAXIMAPSIZE];
@@ -72,16 +121,11 @@ int fsLookup(int iParent, char *name)
         printError(__LINE__);
         return -1;
     }
-    int inodeAddr = fsFindInodeAddr(iParent);
-    if(inodeAddr==-1)
-    {
-        printError(__LINE__);
-        return -1;       
-    }
-    Inode_t inode;
-    lseek(disk,inodeAddr,SEEK_SET);
-    read(disk,&inode,sizeof(Inode_t));
-    if(inode.type!=dir)
+    Inode_t* inode = fetchInode(iParent);
+    if(inode == NULL)
+    return -1;
+    
+    if(inode->type !=dir)
     {
         printError(__LINE__);
         return -1;
@@ -89,7 +133,7 @@ int fsLookup(int iParent, char *name)
     //Search Through every Direct pointer
     for(int i=0;i<MAXDP;i++)
     {
-        int dataBlockAddr = inode.dp[i];
+        int dataBlockAddr = inode->dp[i];
         if(dataBlockAddr==-1)
             continue;
         Dir_t block;
@@ -109,59 +153,11 @@ int fsLookup(int iParent, char *name)
 
 }
 
-Inode_t* fetchInode(int iNum){
-    if(iNum<0 || iNum>MAXINODE)
-    {
-        printError(__LINE__);
-        return NULL;
-    }
-    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
-    if(imapAddr==-1) {
-        printError(__LINE__);
-        return NULL;        
-    }
-    int imapIndex = iNum % MAXIMAPSIZE;
-    Imap_t imap;
-    lseek(disk,imapAddr,SEEK_SET);
-    read(disk,&imap,sizeof(Imap_t));
-
-    int inodeAddr = imap.iLoc[imapIndex];
-    if(inodeAddr==-1) {
-        printError(__LINE__);
-        return NULL;       
-    }
-    Inode_t* inode;
-    lseek(disk,inodeAddr,SEEK_SET);
-    read(disk,inode,sizeof(Inode_t));
-    return inode;
-
-}
-
-Imap_t* fetchImap(int iNum){
-    if(iNum<0 || iNum>MAXINODE)
-    {
-        printError(__LINE__);
-        return NULL;
-    }
-    int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
-
-    if(imapAddr==-1) {
-        printError(__LINE__);
-        return NULL;        
-    }
-
-    Imap_t* imap;
-    lseek(disk, imapAddr,SEEK_SET);
-    read(disk, imap,sizeof(Imap_t));
-
-    return imap;
-}
-
 void* fsRead(int inum, char *buffer, int block) {
     // get the inode
     Inode_t* inode = fetchInode(inum);
     if(inode == NULL)
-        return -1;
+        return NULL;
 
     lseek(disk, inode->dp[block], SEEK_SET);
 
@@ -178,21 +174,26 @@ int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){
     if(inode->type == regular){
         lseek(disk, cr->endofLog, SEEK_SET);
         write(disk, data, MFS_BLOCK_SIZE);
+        inode->dp[block] = cr->endofLog;
         cr->endofLog += MFS_BLOCK_SIZE;
 
-        inode->dp[block] = cr->endofLog;
-        // lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
+        lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
         write(disk, inode, sizeof(Inode_t));
-        cr->endofLog += sizeof(Inode_t);
         
-        cr->iMap[inum/MAXIMAPSIZE] = cr->endofLog;
         Imap_t* imap = fetchImap(inum);
         int imapIndex = inum % MAXIMAPSIZE;
         *imap[imapIndex].iLoc = cr->endofLog;
+        cr->endofLog += sizeof(Inode_t);
 
-        // lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
+        lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
         write(disk, imap, sizeof(Imap_t));
+        cr->iMap[inum/MAXIMAPSIZE] = cr->endofLog;
         cr->endofLog += sizeof(Imap_t);
+
+        lseek(disk,0,SEEK_SET);
+        write(disk,cr,sizeof(CR_t));
+
+        fsync(disk);
         return 0;
     }else{
         return -1;
@@ -204,21 +205,26 @@ int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block){
     if(inode->type == dir){
         lseek(disk, cr->endofLog, SEEK_SET);
         write(disk, dirBlock, sizeof(Dir_t));
+        inode->dp[block] = cr->endofLog;
         cr->endofLog += sizeof(Dir_t);
 
-        inode->dp[block] = cr->endofLog;
-        // lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
+        lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
         write(disk, inode, sizeof(Inode_t));
-        cr->endofLog += sizeof(Inode_t);
         
-        cr->iMap[inum/MAXIMAPSIZE] = cr->endofLog;
         Imap_t* imap = fetchImap(inum);
         int imapIndex = inum % MAXIMAPSIZE;
         *imap[imapIndex].iLoc = cr->endofLog;
+        cr->endofLog += sizeof(Inode_t);
 
-        // lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
+        lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
         write(disk, imap, sizeof(Imap_t));
+        cr->iMap[inum/MAXIMAPSIZE] = cr->endofLog;
         cr->endofLog += sizeof(Imap_t);
+
+        lseek(disk,0,SEEK_SET);
+        write(disk,cr,sizeof(CR_t));
+
+        fsync(disk);
         return 0;
     }else{
         return -1;
@@ -245,7 +251,7 @@ int fsUnlink(int iParent, char *name) {
     if(inode->type != dir)
         return -1;
     
-    Dir_t* dirBlock;
+    Dir_t* dirBlock = (Dir_t*)malloc(sizeof(Dir_t));
     int delInum = -1, delBlock = -1;
     // go through all the directoryBlocks pointed by the dir Inode.
     for(int i=0; i < MAXDP; i++) {
@@ -479,11 +485,12 @@ int fsInit(int portNum, char* fsImage)
     fstat(disk,&diskStat);
     if(diskStat.st_size > sizeof(CR_t))
     {
+        cr = (CR_t*)malloc(sizeof(CR_t));
         printf("Disk Already Initilised\n");
         printf("%lld\n",diskStat.st_size);
 
         lseek(disk,0,SEEK_SET);
-        read(disk,cr,sizeof(CR_t));
+        read(disk, cr, sizeof(CR_t));
         return 1;
 
     }
@@ -540,9 +547,17 @@ int fsInit(int portNum, char* fsImage)
 int main()
 {
     fsInit(0,"hello");
-    // fsCreate(0, regular, "test");
+    fsCreate(0, regular, "writeTest");
 
-    printf("lookup inum = %d", fsLookup(0, "test"));
+    printf("lookup inum = %d", fsLookup(0, "writeTest"));
+    int inum = fsLookup(0, "writeTest");
+    char block[BLOCKSIZE] = "RITUISBEST\0";
+    // memset(block, 0, sizeof(block));
+    fsWrite(inum, block, 0);
+
+    char readBlock[BLOCKSIZE];
+    fsRead(inum, readBlock, 0);
+    printf("read value = %s", readBlock);
     
     return 0;
 }
