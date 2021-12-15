@@ -62,7 +62,7 @@ Inode_t* fetchInode(int iNum){
     Imap_t imap;
     lseek(disk,imapAddr,SEEK_SET);
     read(disk,&imap,sizeof(Imap_t));
-
+    
     int inodeAddr = imap.iLoc[imapIndex];
     if(inodeAddr==-1) {
         printError(__LINE__);
@@ -94,7 +94,6 @@ Imap_t* fetchImap(int iNum){
 
     return imap;
 }
-
 
 int fsFindInodeAddr(int iParent)
 {
@@ -156,9 +155,11 @@ int fsLookup(int iParent, char *name)
 void* fsRead(int inum, char *buffer, int block) {
     // get the inode
     Inode_t* inode = fetchInode(inum);
-    if(inode == NULL)
+    if(inode == NULL || inode->dp[block] == -1){
+        printError(__LINE__);
         return NULL;
-
+    }
+        
     lseek(disk, inode->dp[block], SEEK_SET);
 
     if(inode->type == regular) {
@@ -182,7 +183,7 @@ int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){
         
         Imap_t* imap = fetchImap(inum);
         int imapIndex = inum % MAXIMAPSIZE;
-        *imap[imapIndex].iLoc = cr->endofLog;
+        imap->iLoc[imapIndex] = cr->endofLog;
         cr->endofLog += sizeof(Inode_t);
 
         lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
@@ -200,7 +201,6 @@ int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){
     }
 }
 
-
 int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block){
     if(inode->type == dir){
         lseek(disk, cr->endofLog, SEEK_SET);
@@ -213,7 +213,7 @@ int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block){
         
         Imap_t* imap = fetchImap(inum);
         int imapIndex = inum % MAXIMAPSIZE;
-        *imap[imapIndex].iLoc = cr->endofLog;
+        imap->iLoc[imapIndex] = cr->endofLog;
         cr->endofLog += sizeof(Inode_t);
 
         lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
@@ -284,12 +284,16 @@ int fsUnlink(int iParent, char *name) {
 
     // update the unlinked file's imap[delInodeAddr] = -1
     Imap_t* delInodeImap = fetchImap(delInum);
-    *delInodeImap[delInum % MAXIMAPSIZE].iLoc = -1;
-
+    delInodeImap->iLoc[delInum % MAXIMAPSIZE] = -1;
     cr->iMap[delInum/MAXIMAPSIZE] = cr->endofLog;
     lseek(disk, cr->endofLog, SEEK_SET);
     write(disk, delInodeImap, sizeof(Imap_t));
     cr->endofLog += sizeof(Imap_t);
+
+    lseek(disk,0,SEEK_SET);
+    write(disk,cr,sizeof(CR_t));
+
+    fsync(disk);
 
     return 0;
 }
@@ -333,7 +337,6 @@ int updateDirUnlink(Inode_t* inode, char* name, int* delInodeAddr) {
     return  newInodeAddr;
 }
 
-
 int updateDir(Inode_t* inode,int newiNum,char* name)
 {
     int isFound = 0;
@@ -375,6 +378,7 @@ int updateDir(Inode_t* inode,int newiNum,char* name)
     }
     return  newInodeAddr;
 }
+
 int updateCRMap(int iNum, int iAddr)
 {
     int imapAddr = cr->iMap[iNum/MAXIMAPSIZE];
@@ -544,20 +548,25 @@ int fsInit(int portNum, char* fsImage)
 
     return 2;
 }
+
 int main()
 {
     fsInit(0,"hello");
     fsCreate(0, regular, "writeTest");
 
-    printf("lookup inum = %d", fsLookup(0, "writeTest"));
+    printf("lookup inum = %d\n", fsLookup(0, "writeTest"));
     int inum = fsLookup(0, "writeTest");
-    char block[BLOCKSIZE] = "RITUISBEST\0";
+    char block[BLOCKSIZE] = "Hello\0";
     // memset(block, 0, sizeof(block));
     fsWrite(inum, block, 0);
 
     char readBlock[BLOCKSIZE];
     fsRead(inum, readBlock, 0);
-    printf("read value = %s", readBlock);
+    printf("read value = %s\n", readBlock);
+    
+    fsUnlink(0, "writeTest");
+    fsRead(inum, readBlock, 0);
+    printf("read value = %s\n", readBlock);
     
     return 0;
 }
