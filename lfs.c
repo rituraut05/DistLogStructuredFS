@@ -8,8 +8,6 @@
 #include <assert.h>
 
 #include "lfs.h"
-#include "mfs.h"
-
 
 Inode_t* getInode()
 {
@@ -556,27 +554,8 @@ int fsInit(char* fsImage)
     write(disk,cr,sizeof(CR_t));
 
     fsync(disk);
-
-    
-
     return 0;
 }
-int main()
-{
-    fsInit("hello");
-    fsCreate(0, regular, "writeTest");
 
-    printf("lookup inum = %d", fsLookup(0, "writeTest"));
-    int inum = fsLookup(0, "writeTest");
-    char block[BLOCKSIZE] = "RITUISBEST\0";
-    // memset(block, 0, sizeof(block));
-    fsWrite(inum, block, 0);
-
-    char readBlock[BLOCKSIZE];
-    fsRead(inum, readBlock, 0);
-    printf("read value = %s", readBlock);
-    
-    return 0;
-}
 
 

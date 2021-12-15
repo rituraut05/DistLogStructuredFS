@@ -97,7 +97,16 @@ int init(int port, char* image_path)
   }
 
   return 0;
+}
 
+int main(int argc, char *argv[])
+{
+	if(argc != 3) {
+		perror("Usage: server <portnum> <image>\n");
+		exit(1);
+	}
 
+	init(atoi(argv[1]),argv[2] );
 
+	return 0;
 }

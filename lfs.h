@@ -1,3 +1,5 @@
+#include "mfs.h"
+
 #define MAXINODE 4096
 #define MAXIMAPSIZE 16
 #define MAXIMAPS 256
