@@ -241,6 +241,13 @@ int fsWrite(int inum, char *buffer, int block) {
  
 }
 
+int isUnlinkValid(int inum){
+    Inode_t* inode = fetchInode(inum);
+    if(inode->type == dir && inode->size!=0)
+        return 0;
+    return 1;
+}
+
 int fsUnlink(int iParent, char *name) {
 
     //get inode of the directory by iParent
@@ -267,6 +274,11 @@ int fsUnlink(int iParent, char *name) {
             if(strcmp(dirBlock->dTable[j].name, name) == 0) {
                 delBlock = i;
                 delInum = dirBlock->dTable[j].iNum;
+                if(!isUnlinkValid(delInum)){
+                    printError(__LINE__);
+                    return -1;
+                }
+                    
                 dirBlock->dTable[j].name[0] = '\0';
                 dirBlock->dTable[j].iNum = -1;
                 break;
@@ -434,7 +446,8 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     {
         printError(__LINE__);
         return -1;
-    }    
+    }
+    inode.size++;
     //Updating Parent Indo
     int newiNum = cr->iCount;
     cr->iCount++;
@@ -552,21 +565,29 @@ int fsInit(int portNum, char* fsImage)
 int main()
 {
     fsInit(0,"hello");
-    fsCreate(0, regular, "writeTest");
+    // fsCreate(0, regular, "writeTest");
 
-    printf("lookup inum = %d\n", fsLookup(0, "writeTest"));
-    int inum = fsLookup(0, "writeTest");
-    char block[BLOCKSIZE] = "Hello\0";
-    // memset(block, 0, sizeof(block));
-    fsWrite(inum, block, 0);
+    // printf("lookup inum = %d\n", fsLookup(0, "writeTest"));
+    // int inum = fsLookup(0, "writeTest");
+    // char block[BLOCKSIZE] = "Hello\0";
+    // // memset(block, 0, sizeof(block));
+    // fsWrite(inum, block, 0);
 
-    char readBlock[BLOCKSIZE];
-    fsRead(inum, readBlock, 0);
-    printf("read value = %s\n", readBlock);
+    // char readBlock[BLOCKSIZE];
+    // fsRead(inum, readBlock, 0);
+    // printf("read value = %s\n", readBlock);
     
-    fsUnlink(0, "writeTest");
-    fsRead(inum, readBlock, 0);
-    printf("read value = %s\n", readBlock);
+    // fsUnlink(0, "writeTest");
+    // fsRead(inum, readBlock, 0);
+    // printf("read value = %s\n", readBlock);
+
+    fsCreate(0, dir, "rootFolder");
+    int inum = fsLookup(0, "rootFolder");
+    fsCreate(inum, regular, "file1");
+    fsUnlink(0, "rootFolder");
+
+
+    
     
     return 0;
 }
