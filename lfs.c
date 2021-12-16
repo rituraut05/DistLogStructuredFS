@@ -40,7 +40,7 @@ Dir_t* getDir(){
 
 void printError(int line)
 {
-    printf("Error at line %d \n",((line)));
+ //   printf("Error at line %d \n",((line)));
 }
 Inode_t* fetchInode(int iNum){
     if(iNum<0 || iNum>MAXINODE)
@@ -155,7 +155,7 @@ int fsRead(int inum, char *buffer, int block) {
 
     if(inode == NULL || inode->dp[block] == -1){
         printError(__LINE__);
-        return NULL;
+        return -1;
     }
         
     lseek(disk, inode->dp[block], SEEK_SET);
