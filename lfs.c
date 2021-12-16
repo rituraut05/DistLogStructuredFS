@@ -12,9 +12,6 @@
 #define DEBUG 0
 
 
-
-
-
 int fsInit(char * fsImage){
   //this binds the server to port 100000
   //sd = UDP_Open(10000);
@@ -340,7 +337,7 @@ int createImapPiece(){
 
 //updates imapPiece, deletes imapPiece if need be
 int deleteInode(int inum){
-  printf("inum is: %d\n", inum);
+  
   int imapPieceIndex =inum/16;
   int imapInodeIndex = inum%16;
   int i;
@@ -356,7 +353,6 @@ int deleteInode(int inum){
   i = 0;
   while(imapPiece.iLoc[i] > 0 && i < 16)
     i++;
-  printf("i is: %d\n", i);
 
   if(i == 0){
     int  test =deleteImapPiece(imapPieceIndex);
@@ -774,7 +770,7 @@ int fsStat(const int inum, MFS_Stat_t * m){
   return 0;
 }
 
-int fsShutdown(){
+int fsShutDown(){
   //may need to check disk here
   close(disk);
   exit(0);

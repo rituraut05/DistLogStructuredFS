@@ -44,12 +44,14 @@ Inode_t_Map inodeMap;
 
 
 
+int memLoad();
+int createInode(int pinum, int type);
 
-struct Inode_t* getInode();
-struct Imap_t* getImap();
-struct Dir_t* getDir();
-Inode_t* fetchInode(int iNum);
-Imap_t* fetchImap(int iNum);
+int createImapPiece();
+
+int deleteInode(int inum);
+void printDisk();
+int deleteImapPiece(int imapPieceIndex);
 int fsFindInodeAddr(int iParent);
 int fsLookup(int iParent, char *name);
 int fsRead(int inum, char *buffer, int block);
