@@ -7,29 +7,23 @@
 #define MAXDP 14
 #define BLOCKSIZE 4096
 #define MAXNAMELEN 27
+
 enum TYPE {dir,regular};
 
 
 typedef struct CR_t
 {
-    int endofLog;
+    int endLog;
     int iMap[MAXIMAPS];
-    int iCount;
 }CR_t;
 
 typedef struct Inode_t {
-    int size;
-    enum TYPE type;
+    MFS_Stat_t stats;
     int dp[MAXDP];
 }Inode_t;
 
-typedef struct DirEntry_t {
-    char name[28];
-    int iNum;
-}DirEntry_t;
-
 typedef struct Dir_t {
-    struct DirEntry_t dTable[MAXDIRSIZE];
+    struct __MFS_DirEnt_t dTable[MAXDIRSIZE];
 }Dir_t;
 
 typedef struct Imap_t
@@ -37,10 +31,19 @@ typedef struct Imap_t
     int iLoc[MAXIMAPSIZE];
 }Imap_t;
 
-
+typedef struct Inode_t_Map{
+  int inodes[MFS_BLOCK_SIZE];
+}Inode_t_Map;
 
 int disk;
-CR_t* cr;
+CR_t cr;
+
+Inode_t_Map inodeMap;
+
+
+
+
+
 
 struct Inode_t* getInode();
 struct Imap_t* getImap();
@@ -57,7 +60,7 @@ int fsUnlink(int iParent, char *name);
 int updateDirUnlink(Inode_t* inode, char* name, int* delInodeAddr);
 int updateDir(Inode_t* inode,int newiNum,char* name);
 int updateCRMap(int iNum, int iAddr);
-int fsCreate(int iParent, enum TYPE type, char *name);
+int fsCreate(int iParent, int type, char *name);
 int fsInit(char* fsImage);
 int fsShutDown();
 int fsStat(int iNum, MFS_Stat_t* stat);
