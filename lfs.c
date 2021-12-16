@@ -344,25 +344,42 @@ int updateDir(Inode_t* inode,int newiNum,char* name)
     {
         int dataBlockAddr = inode->dp[i];
         if(dataBlockAddr==-1)
-            continue;
-        Dir_t block;
-        lseek(disk,dataBlockAddr,SEEK_SET);
-        read(disk, &block,sizeof(Dir_t));
-        for(int j=0;j<MAXDIRSIZE;j++)
         {
-            if(block.dTable[j].iNum==-1)
+            Dir_t* tempblock = getDir();
+            if(i>0)
             {
-                block.dTable[j].iNum=newiNum;
+                tempblock->dTable[0].iNum=newiNum;
                 int len = strlen(name);
-                memcpy(block.dTable[j].name,name,len);
-                isFound=1;
+                memcpy(tempblock->dTable[0].name,name,len);
                 newBlockAddr = cr->endofLog;
+                isFound = 1;
                 lseek(disk,newBlockAddr,SEEK_SET);
-                write(disk,&block,sizeof(Dir_t));
+                write(disk,tempblock,sizeof(Dir_t));
                 cr->endofLog+=sizeof(Dir_t);
-                break;
+            }  
+        }
+        else
+        {
+            Dir_t block;
+            lseek(disk,dataBlockAddr,SEEK_SET);
+            read(disk, &block,sizeof(Dir_t));
+            for(int j=0;j<MAXDIRSIZE;j++)
+            {
+                if(block.dTable[j].iNum==-1)
+                {
+                    block.dTable[j].iNum=newiNum;
+                    int len = strlen(name);
+                    memcpy(block.dTable[j].name,name,len);
+                    isFound=1;
+                    newBlockAddr = cr->endofLog;
+                    lseek(disk,newBlockAddr,SEEK_SET);
+                    write(disk,&block,sizeof(Dir_t));
+                    cr->endofLog+=sizeof(Dir_t);
+                    break;
+                }
             }
         }
+
         if(isFound==1)
         {
             inode->dp[i]=newBlockAddr;
@@ -443,6 +460,9 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     int newiNum = cr->iCount;
     cr->iCount++;
     int newiParentAddr = updateDir(&inode,newiNum,name);
+
+    if(newiParentAddr==-1)
+        return -1;
     updateCRMap(iParent,newiParentAddr);
 
     //For new File
