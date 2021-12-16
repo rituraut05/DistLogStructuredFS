@@ -6,7 +6,7 @@
 #define MAXDIRSIZE 128
 #define MAXDP 14
 #define BLOCKSIZE 4096
-
+#define MAXNAMELEN 28
 enum TYPE {dir,regular};
 
 

@@ -411,6 +411,12 @@ int fsCreate(int iParent, enum TYPE type, char *name)
 {
     //Check if name is already in use?
     int isValid = fsLookup(iParent, name);
+    
+    int len = strlen(name);
+    
+    if(len > MAXNAMELEN)
+        return -1;
+
     if(isValid!=-1)
     {
         printError(__LINE__);
@@ -446,6 +452,7 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     if(type==dir)
     {
         Dir_t* temp = getDir();
+        temp->dTable[0].iNum=newiNum;
         temp->dTable[1].iNum=iParent;
         write(disk,temp,sizeof(Dir_t));
         newInode->type=dir;      
