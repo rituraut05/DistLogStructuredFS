@@ -5,15 +5,9 @@
 #define MFS_REGULAR_FILE (1)
 
 #define MFS_BLOCK_SIZE   (4096)
-#define MFS_BYTE_STEP_SIZE   (16384)
-#define NUM_INODE_POINTERS   (14)
-#define TOTAL_NUM_INODES (4096)
-#define IMAP_PIECE_SIZE   (16)		
-#define NUM_IMAP TOTAL_NUM_INODES / IMAP_PIECE_SIZE /* gw: 256 */
-#define LEN_NAME 60
-//#define NUM_DIR_ENTRIES 14
-//#define NUM_DIR_ENTRIES 64
-#define NUM_DIR_ENTRIES 64
+
+#define LEN_NAME 28
+#define MAXRETX 5
 
 
 enum MFS_REQ {
@@ -54,27 +48,9 @@ typedef struct __UDP_Packet {
 } UDP_Packet;
 
 
-typedef struct __MFS_Inode_t{
-	int size;
-	int type;
-	int data[NUM_INODE_POINTERS]; /* pointer to data blocks (direct) */
-} MFS_Inode_t;
 
-/* gw: strictly, this is just one piece of imap, total 256 pieces */
-typedef struct __MFS_Imap_t{
-	int inodes[IMAP_PIECE_SIZE]; /* gw: 16 */
-} MFS_Imap_t;
 
-typedef struct __MFS_CR_t{
-	int inode_count;
-	int end_log;
-	int imap[NUM_IMAP];	/* 256, NUM_IMAP = TOTAL_NUM_INODES / IMAP_PIECE_SIZE */
-} MFS_CR_t;
 
-/* gw: data block for dir */
-typedef struct __MFS_DirDataBlock_t {
-  MFS_DirEnt_t entries[NUM_DIR_ENTRIES];
-} MFS_DirDataBlock_t;
 
 
 
@@ -87,3 +63,4 @@ int MFS_Creat(int pinum, int type, char *name);
 int MFS_Unlink(int pinum, char *name);
 
 #endif 
+

@@ -1,7 +1,3 @@
-/* this is working fine I think it passed the result  */
-/* packets are encapsulated correctly */
-/* UD send and receive Ok */
-/* gw: maybe need to load all imap piece into mem? */
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +36,7 @@ int UDP_Send( UDP_Packet *tx, UDP_Packet *rx, char *hostname, int port)
     tv.tv_sec=3;
     tv.tv_usec=0;
 
-    int trial_limit = 5;	/* trial = 5 */
+    int trial_limit = MAXRETX;	
     do {
         FD_ZERO(&rfds);
         FD_SET(sd,&rfds);
@@ -213,3 +209,4 @@ int MFS_Shutdown(){
 	
 	return 0;
 }
+

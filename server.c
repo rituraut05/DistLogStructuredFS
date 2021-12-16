@@ -28,69 +28,71 @@ int init(int port, char* image_path)
         return res;
     }
 
-  int sd=-1;
+  int sd =-1;
+  struct sockaddr_in socket;
+  UDP_Packet BufferPacket,  RespPacket;
+  int flag = 1;
+
+
   if((sd =   UDP_Open(port))< 0){
     perror("server_init: port open fail");
     return -1;
   }
 
-
-  struct sockaddr_in s;
-  UDP_Packet buf_pk,  rx_pk;
-
-  while (1) {
+  while (flag) {
     //printf("Server Started \n");
-    if( UDP_Read(sd, &s, (char *)&buf_pk, sizeof(UDP_Packet)) < 1)
+    if( UDP_Read(sd, &socket, (char *)&BufferPacket, sizeof(UDP_Packet)) < 1)
       continue;
 
 
-    if(buf_pk.request == REQ_LOOKUP){
-      rx_pk.inum = fsLookup(buf_pk.inum, buf_pk.name);
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    if(BufferPacket.request == REQ_LOOKUP){
+      RespPacket.inum = fsLookup(BufferPacket.inum, BufferPacket.name);
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_STAT){
-      rx_pk.inum = fsStat(buf_pk.inum, &(rx_pk.stat));
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_STAT){
+      RespPacket.inum = fsStat(BufferPacket.inum, &(RespPacket.stat));
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_WRITE){
-      rx_pk.inum = fsWrite(buf_pk.inum, buf_pk.buffer, buf_pk.block);
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_WRITE){
+      RespPacket.inum = fsWrite(BufferPacket.inum, BufferPacket.buffer, BufferPacket.block);
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_READ){
-      rx_pk.inum = fsRead(buf_pk.inum, rx_pk.buffer, buf_pk.block);
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_READ){
+      RespPacket.inum = fsRead(BufferPacket.inum, RespPacket.buffer, BufferPacket.block);
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_CREAT){
-      rx_pk.inum = fsCreate(buf_pk.inum, buf_pk.type, buf_pk.name);
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_CREAT){
+      RespPacket.inum = fsCreate(BufferPacket.inum, BufferPacket.type, BufferPacket.name);
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_UNLINK){
-      rx_pk.inum = fsUnlink(buf_pk.inum, buf_pk.name);
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_UNLINK){
+      RespPacket.inum = fsUnlink(BufferPacket.inum, BufferPacket.name);
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(buf_pk.request == REQ_SHUTDOWN) {
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_SHUTDOWN) {
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
       fsShutDown();
     }
-    else if(buf_pk.request == REQ_RESPONSE) {
-      rx_pk.request = REQ_RESPONSE;
-      UDP_Write(sd, &s, (char*)&rx_pk, sizeof(UDP_Packet));
+    else if(BufferPacket.request == REQ_RESPONSE) {
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
     }
     else {
       perror("server_init: unknown request");
+      flag = 0;
       return -1;
     }
 
@@ -107,7 +109,8 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	init(atoi(argv[1]),argv[2] );
+	init(atoi(argv[1]),argv[2]);
 
 	return 0;
 }
+
