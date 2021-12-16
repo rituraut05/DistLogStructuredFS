@@ -167,6 +167,9 @@ int dumpFileInodeDataImap(Inode_t* inode, int inum, char* data, int block){
     if(inode->type == regular){
         lseek(disk, cr->endofLog, SEEK_SET);
         write(disk, data, MFS_BLOCK_SIZE);
+        //if(inode->dp[block]==-1)
+            //inode->size+=MFS_BLOCK_SIZE;
+        inode->size=(block+1)*MFS_BLOCK_SIZE;
         inode->dp[block] = cr->endofLog;
         cr->endofLog += MFS_BLOCK_SIZE;
 
@@ -199,7 +202,7 @@ int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block){
         write(disk, dirBlock, sizeof(Dir_t));
         inode->dp[block] = cr->endofLog;
         cr->endofLog += sizeof(Dir_t);
-
+        
         lseek(disk, cr->endofLog, SEEK_SET); //we don't need this right?
         write(disk, inode, sizeof(Inode_t));
         
@@ -225,6 +228,9 @@ int dumpDirInodeDataImap(Inode_t* inode, int inum, Dir_t* dirBlock, int block){
 
 int fsWrite(int inum, char *buffer, int block) {
     // get the inode
+    if(block<0 || block >= MAXDP)
+        return -1;    
+ 
     Inode_t* inode = fetchInode(inum);
     if(inode == NULL)
         return -1;

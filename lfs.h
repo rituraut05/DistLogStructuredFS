@@ -7,7 +7,7 @@
 #define MAXDP 14
 #define BLOCKSIZE 4096
 
-enum TYPE {regular,dir};
+enum TYPE {dir,regular};
 
 
 typedef struct CR_t
