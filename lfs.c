@@ -239,6 +239,13 @@ int fsWrite(int inum, char *buffer, int block) {
  
 }
 
+int isUnlinkValid(int inum){
+    Inode_t* inode = fetchInode(inum);
+    if(inode->type== dir && inode->size!=0)
+        return 0;
+    return 1;
+}
+
 int fsUnlink(int iParent, char *name) {
 
     //get inode of the directory by iParent
@@ -261,10 +268,13 @@ int fsUnlink(int iParent, char *name) {
         read(disk, dirBlock, sizeof(Dir_t));
         
         // find for given name in the directory entries. If found, set iNum to -1
+        
         for(int j=0; j < MAXDIRSIZE; j++){
             if(strcmp(dirBlock->dTable[j].name, name) == 0) {
                 delBlock = i;
                 delInum = dirBlock->dTable[j].iNum;
+                if(!isUnlinkValid(delInum))
+                    return -1;
                 dirBlock->dTable[j].name[0] = '\0';
                 dirBlock->dTable[j].iNum = -1;
                 break;
@@ -432,7 +442,9 @@ int fsCreate(int iParent, enum TYPE type, char *name)
     {
         printError(__LINE__);
         return -1;
-    }    
+    }
+
+    inode.size++;
     //Updating Parent Indo
     int newiNum = cr->iCount;
     cr->iCount++;
