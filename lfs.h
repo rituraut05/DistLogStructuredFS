@@ -6,7 +6,7 @@
 #define MAXDIRSIZE 128
 #define MAXDP 14
 #define BLOCKSIZE 4096
-#define MAXNAMELEN 27
+#define MAXNAMELEN 28
 
 enum TYPE {dir,regular};
 
@@ -47,11 +47,11 @@ Inode_t_Map inodeMap;
 int memLoad();
 int createInode(int pinum, int type);
 
-int createImapPiece();
+int createImapBlock();
 
 int deleteInode(int inum);
 void printDisk();
-int deleteImapPiece(int imapPieceIndex);
+int deleteImapBlock(int imapPieceIndex);
 int fsFindInodeAddr(int iParent);
 int fsLookup(int iParent, char *name);
 int fsRead(int inum, char *buffer, int block);
@@ -66,5 +66,6 @@ int fsCreate(int iParent, int type, char *name);
 int fsInit(char* fsImage);
 int fsShutDown();
 int fsStat(int iNum, MFS_Stat_t* stat);
+
 
 

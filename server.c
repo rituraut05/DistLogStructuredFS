@@ -40,7 +40,6 @@ int init(int port, char* image_path)
   }
 
   while (flag) {
-    //printf("Server Started \n");
     if( UDP_Read(sd, &socket, (char *)&BufferPacket, sizeof(UDP_Packet)) < 1)
       continue;
 
@@ -51,14 +50,8 @@ int init(int port, char* image_path)
       UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(BufferPacket.request == REQ_STAT){
-      RespPacket.inum = fsStat(BufferPacket.inum, &(RespPacket.stat));
-      RespPacket.request = REQ_RESPONSE;
-      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
-
-    }
-    else if(BufferPacket.request == REQ_WRITE){
-      RespPacket.inum = fsWrite(BufferPacket.inum, BufferPacket.buffer, BufferPacket.block);
+    else if(BufferPacket.request == REQ_UNLINK){
+      RespPacket.inum = fsUnlink(BufferPacket.inum, BufferPacket.name);
       RespPacket.request = REQ_RESPONSE;
       UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
@@ -69,26 +62,32 @@ int init(int port, char* image_path)
       UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
+    else if(BufferPacket.request == REQ_SHUTDOWN) {
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
+      fsShutDown();
+    }
+    else if(BufferPacket.request == REQ_STAT){
+      RespPacket.inum = fsStat(BufferPacket.inum, &(RespPacket.stat));
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
+
+    }
+    else if(BufferPacket.request == REQ_RESPONSE) {
+      RespPacket.request = REQ_RESPONSE;
+      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
+    }
     else if(BufferPacket.request == REQ_CREAT){
       RespPacket.inum = fsCreate(BufferPacket.inum, BufferPacket.type, BufferPacket.name);
       RespPacket.request = REQ_RESPONSE;
       UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
     }
-    else if(BufferPacket.request == REQ_UNLINK){
-      RespPacket.inum = fsUnlink(BufferPacket.inum, BufferPacket.name);
+    else if(BufferPacket.request == REQ_WRITE){
+      RespPacket.inum = fsWrite(BufferPacket.inum, BufferPacket.buffer, BufferPacket.block);
       RespPacket.request = REQ_RESPONSE;
       UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
 
-    }
-    else if(BufferPacket.request == REQ_SHUTDOWN) {
-      RespPacket.request = REQ_RESPONSE;
-      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
-      fsShutDown();
-    }
-    else if(BufferPacket.request == REQ_RESPONSE) {
-      RespPacket.request = REQ_RESPONSE;
-      UDP_Write(sd, &socket, (char*)&RespPacket, sizeof(UDP_Packet));
     }
     else {
       perror("server_init: unknown request");
@@ -113,4 +112,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
